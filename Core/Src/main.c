@@ -99,7 +99,7 @@ int _write(int file, char *ptr, int len)
 }
 
 //**************************.MX_USART2_UART_Init.******************************
-// Purpose : initialize UART2.
+// Purpose : Initialize UART2.
 // Inputs  : None
 // Outputs : None
 // Return  : None

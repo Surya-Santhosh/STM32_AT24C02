@@ -21,13 +21,13 @@ typedef struct TX_MESSAGE
 {
 	uint8 ucCmd;
 	uint8 ucAddress;
-	uint8 ucValue;
+	uint8 ucData;
 }TX_MESSAGE;
 
 typedef struct RX_MESSAGE
 {
 	uint8 ucAck;
-	uint8 ucValue;
+	uint8 ucData;
 }RX_MESSAGE;
 
 //************************* Global Constants **********************************

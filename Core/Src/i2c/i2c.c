@@ -30,7 +30,7 @@
 //		   : unSize - Amount of data to be write.
 //		   : ulTimeout - Timeout duration.
 // Outputs : None
-// Return  : true
+// Return  : blResult
 // Notes   : None
 //*****************************************************************************
 bool i2cWrite(I2C_HandleTypeDef *pstI2C, uint16 unDeviceAddress,
@@ -61,7 +61,7 @@ bool i2cWrite(I2C_HandleTypeDef *pstI2C, uint16 unDeviceAddress,
 //		   : unSize - Amount of data to be read.
 //		   : ulTimeout - Timeout duration.
 // Outputs : None
-// Return  : true
+// Return  : blResult
 // Notes   : None
 //*****************************************************************************
 bool i2cRead(I2C_HandleTypeDef *pstI2C,uint16 unDeviceAddress,

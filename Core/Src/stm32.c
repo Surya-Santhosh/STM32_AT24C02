@@ -111,8 +111,8 @@ bool stm32Master()
     		if (true == i2cWrite(&hi2c1, EEPROM_DEVICE_ADDRESS,
     				             stRecievedTxMessage.ucAddress,
     		    			     (uint16)I2C_MEMADD_SIZE_8BIT,
-    		    				 &stRecievedTxMessage.ucValue,
-							     sizeof(stRecievedTxMessage.ucValue), TIMEOUT))
+    		    				 &stRecievedTxMessage.ucData,
+							     sizeof(stRecievedTxMessage.ucData), TIMEOUT))
 			{
     			stRxMessage.ucAck = WRITE_ACK;
 			}
@@ -122,8 +122,8 @@ bool stm32Master()
     		if (true == i2cRead(&hi2c1, EEPROM_DEVICE_ADDRESS,
     				            stRecievedTxMessage.ucAddress,
     				            (uint16)I2C_MEMADD_SIZE_8BIT,
-								&stRxMessage.ucValue,
-								sizeof(stRxMessage.ucValue), TIMEOUT))
+								&stRxMessage.ucData,
+								sizeof(stRxMessage.ucData), TIMEOUT))
 			{
 				stRxMessage.ucAck = READ_ACK;
 			}

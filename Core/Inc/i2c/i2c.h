@@ -21,11 +21,11 @@
 
 //************************* Forward Declarations ******************************
 bool i2cWrite(I2C_HandleTypeDef *pstI2C,uint16 unDeviceAddress,
-		               uint16 unMemoryAddress, uint16 unMemoryAddressSize,
-					   uint8 *pucWriteData, uint16 unSize, uint32 ulTimeout);
+		      uint16 unMemoryAddress, uint16 unMemoryAddressSize,
+			  uint8 *pucWriteData, uint16 unSize, uint32 ulTimeout);
 bool i2cRead(I2C_HandleTypeDef *pstI2C,uint16 unDeviceAddress,
-                      uint16 unMemoryAddress, uint16 unMemoryAddressSize,
-		              uint8 *pucReadData, uint16 unSize, uint32 ulTimeout);
+             uint16 unMemoryAddress, uint16 unMemoryAddressSize,
+		     uint8 *pucReadData, uint16 unSize, uint32 ulTimeout);
 
 //********************** Inline Method Implementations ************************
 
