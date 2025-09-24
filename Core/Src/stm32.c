@@ -36,8 +36,8 @@ static osMessageQueueId_t mqMasterHandle;
 //*****************************************************************************
 bool stm32Slave()
 {
-	uint8 ucRxData[TX_MESSAGE_SIZE] = {0};
-	uint8 ucTxData[RX_MESSAGE_SIZE] = {0};
+	uint8 pucRxData[TX_MESSAGE_SIZE] = {0};
+	uint8 pucTxData[RX_MESSAGE_SIZE] = {0};
 	TX_MESSAGE stTxMessage = {0};
 	RX_MESSAGE stRecievedRxMessage ={0};
 
@@ -46,10 +46,10 @@ bool stm32Slave()
 		printf("osLayerGetSemHandler failed\r\n");
 	}
 
-	if (HAL_OK == HAL_I2C_Slave_Receive(&hi2c2, ucRxData, TX_MESSAGE_SIZE,
+	if (HAL_OK == HAL_I2C_Slave_Receive(&hi2c2, pucRxData, TX_MESSAGE_SIZE,
 			                            TIMEOUT))
 	{
-		memcpy(&stTxMessage, ucRxData, sizeof(ucRxData));
+		memcpy(&stTxMessage, pucRxData, sizeof(pucRxData));
 
 		if (osOK == osMessageQueuePut((osMessageQueueId_t) mqSlaveHandle,
 											   &stTxMessage, 0, TIMEOUT))
@@ -68,9 +68,9 @@ bool stm32Slave()
 	{
 		printf("Message Received from EEPROM\r\n");
 
-		memcpy(ucTxData, &stRecievedRxMessage, sizeof(RX_MESSAGE));
+		memcpy(pucTxData, &stRecievedRxMessage, sizeof(RX_MESSAGE));
 
-		if (HAL_OK == HAL_I2C_Slave_Transmit(&hi2c2, ucTxData, RX_MESSAGE_SIZE,
+		if (HAL_OK == HAL_I2C_Slave_Transmit(&hi2c2, pucTxData, RX_MESSAGE_SIZE,
 				                             TIMEOUT))
 		{
 		  printf("Data Tx Success \r\n");
