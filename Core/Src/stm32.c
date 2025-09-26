@@ -67,15 +67,12 @@ static bool stm32Slave()
 	}
 
 	osSemaphoreRelease(pSemSlaveHandle);
-
-	// Wait from Ack.
 	osSemaphoreAcquire(pSemMasterHandle, osWaitForever);
 
 	if (osOK == osMessageQueueGet((osMessageQueueId_t) pMqMasterHandle,
 	    		                       &stRecievedRxMessage, 0, TIMEOUT))
 	{
 		printf("Message Received from EEPROM\r\n");
-
 		memcpy(ucTxData, &stRecievedRxMessage, sizeof(_RX_MESSAGE_));
 
 		if (HAL_OK == HAL_I2C_Slave_Transmit(&stHi2c2, ucTxData, RX_MESSAGE_SIZE,
