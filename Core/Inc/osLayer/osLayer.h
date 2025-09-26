@@ -3,7 +3,8 @@
 // All Rights Reserved
 //*****************************************************************************
 //
-// Summary : Read and write operation using I2C Communication.
+// Summary : oslayer creation for STM32 communication framework(thread,
+//         : semaphore, message queue).
 // Note    : None
 //
 //*****************************************************************************
@@ -14,13 +15,14 @@
 #include "common.h"
 
 //*************************** Global Types ************************************
-typedef struct THREAD
+typedef struct _THREAD_
 {
 	osThreadId_t stThreadID;
-	const osThreadAttr_t stThreadAttributes;
+	uint32 stack_size;
+	osPriority_t enpriority;
 	void (*thread)(void *);
 
-}THREAD;
+}_THREAD_;
 
 //************************* Global Constants **********************************
 
@@ -28,9 +30,9 @@ typedef struct THREAD
 
 //************************* Forward Declarations ******************************
 bool osLayerCreation();
-bool osLayerGetSemHandler(osSemaphoreId_t *ppsemSlaveHandle,
-		                  osSemaphoreId_t *ppsemMasterHandle);
-bool osLayerMQueueCreation(osMessageQueueId_t *ppmqSlaveHandle, uint16 unSize);
+bool osLayerGetSemHandler(osSemaphoreId_t *ppSemSlaveHandle,
+		                  osSemaphoreId_t *ppSemMasterHandle);
+bool osLayerMQueueCreation(osMessageQueueId_t *ppMqSlaveHandle, uint16 unSize);
 
 //********************** Inline Method Implementations ************************
 

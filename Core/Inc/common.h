@@ -24,8 +24,20 @@ typedef unsigned long uint32;
 typedef char int8;
 typedef signed short int16;
 
+typedef struct _I2C_PACKET_
+{
+	I2C_HandleTypeDef stI2C;
+	uint16 unDeviceAddress;
+	uint16 unMemoryAddress;
+	uint16 unMemoryAddressSize;
+	uint8 ucData;
+	uint16 unSize;
+	uint32 ulTimeout;
+}_I2C_PACKET_;
+
 //************************* Global Constants ***********************************
 #define EEPROM_DEVICE_ADDRESS       (0x50 << 1)
+#define STACK_SIZE                  (128 * 4)
 #define WRITE_CMD                   (0x01)
 #define READ_CMD                    (0x02)
 #define WRITE_ACK                   (0x01)
@@ -35,7 +47,6 @@ typedef signed short int16;
 #define TIMEOUT                     (100)
 #define SIZE_DATA_TO_SEND           (1)
 #define SIZE_DATA_TO_RECEIVE        (1)
-#define NUM_THREAD                  (2)
 #define NUM_SEM                     (2)
 
 //************************* Global Variables ***********************************

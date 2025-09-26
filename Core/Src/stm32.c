@@ -3,7 +3,8 @@
 // All Rights Reserved
 //*****************************************************************************
 // File    : stm32.c
-// Summary : Read and write data from ESP32 to AT24C02.
+// Summary : Implement STM32 as I2C slave and master, intermediate
+//         : communication between ESP32 and AT24C02.
 // Note    : None
 // Author  : Surya Santhosh
 // Day     : 10/SEP/2025
@@ -13,20 +14,22 @@
 #include "stm32.h"
 
 //******************************* Local Types *********************************
-I2C_HandleTypeDef hi2c2 = {0};
-I2C_HandleTypeDef hi2c1 = {0};
 
 //***************************** Local Constants *******************************
-static osSemaphoreId_t semMasterHandle;
-static osSemaphoreId_t semSlaveHandle;
-static osMessageQueueId_t mqSlaveHandle;
-static osMessageQueueId_t mqMasterHandle;
+static osSemaphoreId_t pSemMasterHandle;
+static osSemaphoreId_t pSemSlaveHandle;
+static osMessageQueueId_t pMqSlaveHandle;
+static osMessageQueueId_t pMqMasterHandle;
+static I2C_HandleTypeDef stHi2c2;
+static I2C_HandleTypeDef stHi2c1;
 
 //***************************** Local Variables *******************************
 
 //****************************** Local Functions ******************************
+static bool stm32Slave();
+static bool stm32Master();
 
-//********************************.stm32Slave.*********************************
+//*******************************.stm32Slave.**********************************
 // Purpose : Act as STM32 I2C Slave, Receive commands from ESP32 send to
 //         : master via message queue and send back Ack to ESP32.
 // Inputs  : None
@@ -34,43 +37,48 @@ static osMessageQueueId_t mqMasterHandle;
 // Return  : true
 // Notes   : None
 //*****************************************************************************
-bool stm32Slave()
+static bool stm32Slave()
 {
-	uint8 pucRxData[TX_MESSAGE_SIZE] = {0};
-	uint8 pucTxData[RX_MESSAGE_SIZE] = {0};
-	TX_MESSAGE stTxMessage = {0};
-	RX_MESSAGE stRecievedRxMessage ={0};
+	uint8 ucRxData[TX_MESSAGE_SIZE] = {0};
+	uint8 ucTxData[RX_MESSAGE_SIZE] = {0};
+	_TX_MESSAGE_ stTxMessage = {0};
+	_RX_MESSAGE_ stRecievedRxMessage ={0};
 
-	if (true != osLayerGetSemHandler(&semSlaveHandle, &semMasterHandle))
+	if (true != osLayerGetSemHandler(&pSemSlaveHandle, &pSemMasterHandle))
 	{
 		printf("osLayerGetSemHandler failed\r\n");
 	}
 
-	if (HAL_OK == HAL_I2C_Slave_Receive(&hi2c2, pucRxData, TX_MESSAGE_SIZE,
+	if (true != i2cGetHandler(&stHi2c1, &stHi2c2))
+	{
+		printf("osLayerGetI2CHandler failed\r\n");
+	}
+
+	if (HAL_OK == HAL_I2C_Slave_Receive(&stHi2c2, ucRxData, TX_MESSAGE_SIZE,
 			                            TIMEOUT))
 	{
-		memcpy(&stTxMessage, pucRxData, sizeof(pucRxData));
+		memcpy(&stTxMessage, ucRxData, sizeof(ucRxData));
 
-		if (osOK == osMessageQueuePut((osMessageQueueId_t) mqSlaveHandle,
+		if (osOK == osMessageQueuePut((osMessageQueueId_t) pMqSlaveHandle,
 											   &stTxMessage, 0, TIMEOUT))
 		{
 			printf("Message Received from ESP32\r\n");
 		}
 	}
 
-	osSemaphoreRelease(semSlaveHandle);
+	osSemaphoreRelease(pSemSlaveHandle);
 
 	// Wait from Ack.
-	osSemaphoreAcquire(semMasterHandle, osWaitForever);
+	osSemaphoreAcquire(pSemMasterHandle, osWaitForever);
 
-	if (osOK == osMessageQueueGet((osMessageQueueId_t) mqMasterHandle,
+	if (osOK == osMessageQueueGet((osMessageQueueId_t) pMqMasterHandle,
 	    		                       &stRecievedRxMessage, 0, TIMEOUT))
 	{
 		printf("Message Received from EEPROM\r\n");
 
-		memcpy(pucTxData, &stRecievedRxMessage, sizeof(RX_MESSAGE));
+		memcpy(ucTxData, &stRecievedRxMessage, sizeof(_RX_MESSAGE_));
 
-		if (HAL_OK == HAL_I2C_Slave_Transmit(&hi2c2, pucTxData, RX_MESSAGE_SIZE,
+		if (HAL_OK == HAL_I2C_Slave_Transmit(&stHi2c2, ucTxData, RX_MESSAGE_SIZE,
 				                             TIMEOUT))
 		{
 		  printf("Data Tx Success \r\n");
@@ -81,7 +89,7 @@ bool stm32Slave()
 		}
 	}
 
-	osSemaphoreRelease(semSlaveHandle);
+	osSemaphoreRelease(pSemSlaveHandle);
 
 	return true;
 }
@@ -94,119 +102,75 @@ bool stm32Slave()
 // Return  : true
 // Notes   : None
 //*****************************************************************************
-bool stm32Master()
+static bool stm32Master()
 {
-	TX_MESSAGE stRecievedTxMessage = {0};
-	RX_MESSAGE stRxMessage ={0};
+	_TX_MESSAGE_ stRecievedTxMessage = {0};
+	_RX_MESSAGE_ stRxMessage ={0};
+	_I2C_PACKET_ stI2cPacket = {0};
 
-	osSemaphoreAcquire(semSlaveHandle, osWaitForever);
+	if (true != osLayerGetSemHandler(&pSemSlaveHandle, &pSemMasterHandle))
+	{
+		printf("osLayerGetSemHandler failed\r\n");
+	}
 
-    if (osOK == osMessageQueueGet((osMessageQueueId_t) mqSlaveHandle,
+	osSemaphoreAcquire(pSemSlaveHandle, osWaitForever);
+
+    if (osOK == osMessageQueueGet((osMessageQueueId_t) pMqSlaveHandle,
     		                       &stRecievedTxMessage, 0, TIMEOUT))
     {
     	printf("Message Received from Slave.\r\n");
 
+    	stI2cPacket.stI2C = stHi2c1;
+    	stI2cPacket.unDeviceAddress = EEPROM_DEVICE_ADDRESS;
+    	stI2cPacket.unMemoryAddress = stRecievedTxMessage.ucAddress;
+    	stI2cPacket.unMemoryAddressSize = I2C_MEMADD_SIZE_8BIT;
+    	stI2cPacket.ulTimeout = TIMEOUT;
+
     	if (WRITE_CMD == stRecievedTxMessage.ucCmd)
     	{
-    		if (true == i2cWrite(&hi2c1, EEPROM_DEVICE_ADDRESS,
-    				             stRecievedTxMessage.ucAddress,
-    		    			     (uint16)I2C_MEMADD_SIZE_8BIT,
-    		    				 &stRecievedTxMessage.ucData,
-							     sizeof(stRecievedTxMessage.ucData), TIMEOUT))
+    		stI2cPacket.ucData = stRecievedTxMessage.ucData;
+    		stI2cPacket.unSize = sizeof(stRecievedTxMessage.ucData);
+
+    		if (true == i2cWrite(&stI2cPacket))
 			{
     			stRxMessage.ucAck = WRITE_ACK;
 			}
     	}
     	else
     	{
-    		if (true == i2cRead(&hi2c1, EEPROM_DEVICE_ADDRESS,
-    				            stRecievedTxMessage.ucAddress,
-    				            (uint16)I2C_MEMADD_SIZE_8BIT,
-								&stRxMessage.ucData,
-								sizeof(stRxMessage.ucData), TIMEOUT))
+    		stI2cPacket.ucData = stRxMessage.ucData;
+    		stI2cPacket.unSize = sizeof(stRxMessage.ucData);
+
+    		if (true == i2cRead(&stI2cPacket))
 			{
 				stRxMessage.ucAck = READ_ACK;
+				stRxMessage.ucData = stI2cPacket.ucData;
 			}
     	}
 
-		if (osOK == osMessageQueuePut((osMessageQueueId_t) mqMasterHandle,
+		if (osOK == osMessageQueuePut((osMessageQueueId_t) pMqMasterHandle,
 									&stRxMessage, 0, TIMEOUT))
 		{
 			printf("Message send to slave\r\n");
 		}
     }
 
-	osSemaphoreRelease(semMasterHandle);
-	osSemaphoreAcquire(semSlaveHandle, osWaitForever);
+	osSemaphoreRelease(pSemMasterHandle);
+	osSemaphoreAcquire(pSemSlaveHandle, osWaitForever);
 
 	return true;
 }
-//***************************.stm32SlaveI2C2Init.******************************
-// Purpose : Initialize I2C2.
-// Inputs  : None
-// Outputs : None
-// Return  : blResult
-// Notes   : None
-//*****************************************************************************
-bool stm32SlaveI2C2Init()
-{
-	bool blResult = false;
-	hi2c2.Instance = I2C2;
-	hi2c2.Init.ClockSpeed = 100000;
-	hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	hi2c2.Init.OwnAddress1 = 24;
-	hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-	hi2c2.Init.OwnAddress2 = 0;
-	hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-	hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
 
-	if (HAL_OK == HAL_I2C_Init(&hi2c2))
-	{
-		blResult = true;
-	}
-
-	return blResult;
-}
-
-//**************************.stm32SlaveI2C1Init.*******************************
-// Purpose : Initialize I2C1.
-// Inputs  : None
-// Outputs : None
-// Return  : blResult
-// Notes   : None
-//*****************************************************************************
-bool stm32SlaveI2C1Init()
-{
-	bool blResult = false;
-	hi2c1.Instance = I2C1;
-	hi2c1.Init.ClockSpeed = 100000;
-	hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
-	hi2c1.Init.OwnAddress1 = 0;
-	hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-	hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-	hi2c1.Init.OwnAddress2 = 0;
-	hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-	hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-
-	if (HAL_OK == HAL_I2C_Init(&hi2c1))
-	{
-		blResult = true;
-	}
-
-	return blResult;
-}
-
-//*****************************.StartTaskSlave.********************************
+//*****************************.stm32SlaveTask.********************************
 // Purpose : Thread function for STM32 Slave operation.
 // Inputs  : None
 // Outputs : None
 // Return  : None
 // Notes   : None
 //*****************************************************************************
-void StartTaskSlave()
+void stm32SlaveTask()
 {
-	if (true != osLayerMQueueCreation(&mqSlaveHandle, sizeof(TX_MESSAGE)))
+	if (true != osLayerMQueueCreation(&pMqSlaveHandle, sizeof(_TX_MESSAGE_)))
 	{
 		printf ("Message Queue creation failed\r\n");
 	}
@@ -220,16 +184,16 @@ void StartTaskSlave()
 	}
 }
 
-//*****************************.StartTaskMaster.*******************************
+//*****************************.stm32MasterTask.*******************************
 // Purpose : Thread function for STM32 Master operation.
 // Inputs  : None
 // Outputs : None
 // Return  : None
 // Notes   : None
 //*****************************************************************************
-void StartTaskMaster()
+void stm32MasterTask()
 {
-	if (true != osLayerMQueueCreation(&mqMasterHandle, sizeof(RX_MESSAGE)))
+	if (true != osLayerMQueueCreation(&pMqMasterHandle, sizeof(_RX_MESSAGE_)))
 	{
 		printf ("Message Queue creation failed\r\n");
 	}

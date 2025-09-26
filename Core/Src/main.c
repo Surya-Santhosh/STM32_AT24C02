@@ -3,7 +3,7 @@
 // All Rights Reserved
 //******************************************************************************
 // File    : main.c
-// Summary : Read and write data from ESP32 to AT24C02.
+// Summary : Initialize UART, I2C, and OSLayer for STM32 communication.
 // Note    : None
 // Author  : Surya Santhosh
 // Day     : 10/SEP/2025
@@ -20,7 +20,7 @@
 //***************************** Local Constants ********************************
 
 //***************************** Local Variables ********************************
-static UART_HandleTypeDef huart2 = {0};
+static UART_HandleTypeDef stHuart2 = {0};
 
 //****************************** Local Functions *******************************
 void SystemClock_Config(void);
@@ -39,8 +39,8 @@ int main(void)
   HAL_Init();
   SystemClock_Config();
   MX_USART2_UART_Init();
-  stm32SlaveI2C2Init();
-  stm32SlaveI2C1Init();
+  i2c2Init();
+  i2c1Init();
   osKernelInitialize();
   osLayerCreation();
   osKernelStart();
@@ -66,7 +66,8 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI_DIV2;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL16;
-  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+
+  if (HAL_OK != HAL_RCC_OscConfig(&RCC_OscInitStruct))
   {
     Error_Handler();
   }
@@ -78,28 +79,30 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_OK != HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2))
   {
     Error_Handler();
   }
 }
 
 //**********************************._write.***********************************
-// Purpose : Retargets printf.
-// Inputs  : None
+// Purpose : Retargets printf to UART2.
+// Inputs  : file - file descriptor.
+//         : ptr - pointer to data to transmit.
+//         : len - No. of bytes to transmit
 // Outputs : None
 // Return  : None
 // Notes   : None
 //*****************************************************************************
 int _write(int file, char *ptr, int len)
 {
-    HAL_UART_Transmit(&huart2, (uint8_t*) ptr, len, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&stHuart2, (uint8_t*) ptr, len, HAL_MAX_DELAY);
 
     return len;
 }
 
 //**************************.MX_USART2_UART_Init.******************************
-// Purpose : Initialize UART2.
+// Purpose : initialize UART2.
 // Inputs  : None
 // Outputs : None
 // Return  : None
@@ -107,19 +110,19 @@ int _write(int file, char *ptr, int len)
 //*****************************************************************************
 static void MX_USART2_UART_Init(void)
 {
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+	stHuart2.Instance = USART2;
+	stHuart2.Init.BaudRate = 115200;
+	stHuart2.Init.WordLength = UART_WORDLENGTH_8B;
+	stHuart2.Init.StopBits = UART_STOPBITS_1;
+	stHuart2.Init.Parity = UART_PARITY_NONE;
+	stHuart2.Init.Mode = UART_MODE_TX_RX;
+	stHuart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	stHuart2.Init.OverSampling = UART_OVERSAMPLING_16;
 
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+	if (HAL_OK != HAL_UART_Init(&stHuart2))
+	{
+		Error_Handler();
+	}
 }
 
 //*****************************.Error_Handler.*********************************

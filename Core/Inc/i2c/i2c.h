@@ -3,7 +3,7 @@
 // All Rights Reserved
 //*****************************************************************************
 //
-// Summary : Read and write operation using I2C Communication.
+// Summary : I2C initialization, read and write operations in stm32.
 // Note    : None
 //
 //*****************************************************************************
@@ -20,12 +20,11 @@
 //************************* Global Variables **********************************
 
 //************************* Forward Declarations ******************************
-bool i2cWrite(I2C_HandleTypeDef *pstI2C,uint16 unDeviceAddress,
-		      uint16 unMemoryAddress, uint16 unMemoryAddressSize,
-			  uint8 *pucWriteData, uint16 unSize, uint32 ulTimeout);
-bool i2cRead(I2C_HandleTypeDef *pstI2C,uint16 unDeviceAddress,
-             uint16 unMemoryAddress, uint16 unMemoryAddressSize,
-		     uint8 *pucReadData, uint16 unSize, uint32 ulTimeout);
+bool i2cRead(_I2C_PACKET_ *pstI2cPacket);
+bool i2cRead(_I2C_PACKET_ *pstI2cPacket);
+bool i2c2Init();
+bool i2c1Init();
+bool i2cGetHandler(I2C_HandleTypeDef *pstHi2c1, I2C_HandleTypeDef *pstHi2c2);
 
 //********************** Inline Method Implementations ************************
 

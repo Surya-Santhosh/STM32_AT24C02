@@ -3,7 +3,8 @@
 // All Rights Reserved
 //*****************************************************************************
 // File    : osLayer.c
-// Summary : Read and write data from ESP32 to AT24C02.
+// Summary : oslayer creation for STM32 communication framework(thread,
+//         : semaphore, message queue).
 // Note    : None
 // Author  : Surya Santhosh
 // Day     : 23/SEP/2025
@@ -16,14 +17,14 @@
 //******************************* Local Types *********************************
 
 //***************************** Local Constants *******************************
-static THREAD stThread[] = {{0, {.priority = (osPriority_t) osPriorityNormal},
-		                    StartTaskSlave},
-		                   {0, {.priority = (osPriority_t) osPriorityNormal },
-		                    StartTaskMaster}};
+static _THREAD_ stThread[] = {{NULL, STACK_SIZE, osPriorityNormal,
+		                      stm32SlaveTask},
+		                      {NULL, STACK_SIZE, osPriorityNormal,
+		                      stm32MasterTask}};
 
 //***************************** Local Variables *******************************
-static osSemaphoreId_t semMasterHandle;
-static osSemaphoreId_t semSlaveHandle;
+static osSemaphoreId_t pSemMasterHandle;
+static osSemaphoreId_t pSemSlaveHandle;
 
 //****************************** Local Functions ******************************
 static bool osLayerSemCreation();
@@ -39,11 +40,15 @@ static bool osLayerThreadCreation();
 static bool osLayerThreadCreation()
 {
 	uint8 ucIndex = 0;
+	osThreadAttr_t stThreadAttributes = {0};
+	uint8 ucNumThread = sizeof(stThread)/sizeof(_THREAD_);
 
-	for (ucIndex = 0; ucIndex < NUM_THREAD; ucIndex++)
+	for (ucIndex = 0; ucIndex < ucNumThread; ucIndex++)
 	{
+		stThreadAttributes.stack_size = stThread[ucIndex].stack_size;
+		stThreadAttributes.priority = stThread[ucIndex].enpriority;
 		stThread[ucIndex].stThreadID = osThreadNew(stThread[ucIndex].thread,
-				               NULL, &stThread[ucIndex].stThreadAttributes);
+				                                   NULL, &stThreadAttributes);
 	}
 
 	return true;
@@ -51,20 +56,21 @@ static bool osLayerThreadCreation()
 
 //***************************.osLayerGetSemHandler.***************************
 // Purpose : To provide semaphore handler for master and slave.
-// Inputs  : None
+// Inputs  : ppSemSlaveHandle - pointer to receive slave semaphore handler.
+//         : ppSemMasterHandle - pointer to receive master semaphore handler.
 // Outputs : None
 // Return  : blResult
 // Notes   : None
 //*****************************************************************************
-bool osLayerGetSemHandler(osSemaphoreId_t *ppsemSlaveHandle,
-		                  osSemaphoreId_t *ppsemMasterHandle)
+bool osLayerGetSemHandler(osSemaphoreId_t *ppSemSlaveHandle,
+		                  osSemaphoreId_t *ppSemMasterHandle)
 {
 	bool blResult = false;
 
-	if ((NULL != ppsemSlaveHandle) && (NULL != ppsemMasterHandle))
+	if ((NULL != ppSemSlaveHandle) && (NULL != ppSemMasterHandle))
 	{
-		*ppsemSlaveHandle = semSlaveHandle;
-		*ppsemMasterHandle = semMasterHandle;
+		*ppSemSlaveHandle = pSemSlaveHandle;
+		*ppSemMasterHandle = pSemMasterHandle;
 		blResult = true;
 	}
 
@@ -80,26 +86,27 @@ bool osLayerGetSemHandler(osSemaphoreId_t *ppsemSlaveHandle,
 //*****************************************************************************
 static bool osLayerSemCreation()
 {
-	semSlaveHandle = osSemaphoreNew(1, 0, NULL);
-	semMasterHandle = osSemaphoreNew(1, 0, NULL);
+	pSemSlaveHandle = osSemaphoreNew(1, 0, NULL);
+	pSemMasterHandle = osSemaphoreNew(1, 0, NULL);
 
 	return true;
 }
 
 //*************************.osLayerMQueueCreation.*****************************
 // Purpose : To create message queue.
-// Inputs  : None
+// Inputs  : ppMqSlaveHandle - pointer to store message queue handler.
+//         : unSize - Size of each message.
 // Outputs : None
-// Return  : true
+// Return  : blResult
 // Notes   : None
 //*****************************************************************************
-bool osLayerMQueueCreation(osMessageQueueId_t *ppmqSlaveHandle, uint16 unSize)
+bool osLayerMQueueCreation(osMessageQueueId_t *ppMqSlaveHandle, uint16 unSize)
 {
 	bool blResult = false;
 
-	if (NULL != ppmqSlaveHandle)
+	if (NULL != ppMqSlaveHandle)
 	{
-		*ppmqSlaveHandle = osMessageQueueNew (1, unSize, NULL);
+		*ppMqSlaveHandle = osMessageQueueNew (1, unSize, NULL);
 		blResult = true;
 	}
 
@@ -110,12 +117,13 @@ bool osLayerMQueueCreation(osMessageQueueId_t *ppmqSlaveHandle, uint16 unSize)
 // Purpose : Initialize thread and semaphore.
 // Inputs  : None
 // Outputs : None
-// Return  : true
+// Return  : blResult
 // Notes   : None
 //*****************************************************************************
 bool osLayerCreation()
 {
 	bool blResult = false;
+
 	do
 	{
 		if (true != osLayerThreadCreation())
