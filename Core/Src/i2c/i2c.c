@@ -130,22 +130,85 @@ bool i2c1Init()
 	return blResult;
 }
 
-//*******************************.i2cGetHandler.*******************************
-// Purpose : To provide semaphore handler for master and slave.
+//*******************************.i2c1GetHandler.******************************
+// Purpose : To provide I2C handler for master.
 // Inputs  : pstHi2c1 - pointer to receive I2C1 Handler.
-//         : pstHi2c2 - pointer to receive I2C2 Handler.
 // Outputs : None
 // Return  : blResult
 // Notes   : None
 //*****************************************************************************
-bool i2cGetHandler(I2C_HandleTypeDef *pstHi2c1, I2C_HandleTypeDef *pstHi2c2)
+bool i2c1GetHandler(I2C_HandleTypeDef *pstHi2c1)
 {
 	bool blResult = false;
 
-	if ((NULL != pstHi2c1) && (NULL != pstHi2c2))
+	if ((NULL != pstHi2c1))
 	{
 		*pstHi2c1 = stHi2c1;
+		blResult = true;
+	}
+
+	return blResult;
+}
+
+//*******************************.i2c2GetHandler.******************************
+// Purpose : To provide I2C handler for slave.
+// Inputs  : pstHi2c2 - pointer to receive I2C2 Handler.
+// Outputs : None
+// Return  : blResult
+// Notes   : None
+//*****************************************************************************
+bool i2c2GetHandler(I2C_HandleTypeDef *pstHi2c2)
+{
+	bool blResult = false;
+
+	if ((NULL != pstHi2c2))
+	{
 		*pstHi2c2 = stHi2c2;
+		blResult = true;
+	}
+
+	return blResult;
+}
+
+//*******************************.i2cSlaveReceive.*****************************
+// Purpose : To receive data from master.
+// Inputs  : pstHi2c - pointer to I2C Handler.
+//         : ucData - Pointer to data.
+//         : unSize - Amount of data to receive.
+//         : ulTimeout - Timeout duration.
+// Outputs : None
+// Return  : blResult
+// Notes   : None
+//*****************************************************************************
+bool i2cSlaveReceive(I2C_HandleTypeDef *pstHi2c, uint8 *pucData, uint16 unSize,
+		             uint32 ulTimeout )
+{
+	bool blResult = false;
+
+	if (HAL_OK == HAL_I2C_Slave_Receive(pstHi2c, pucData, unSize, ulTimeout))
+	{
+		blResult = true;
+	}
+
+	return blResult;
+}
+
+//******************************.i2cSlaveTransmit.*****************************
+// Purpose : To transmit data to master.
+// Inputs  : pstHi2c - pointer to I2C Handler.
+//         : ucData - Pointer to data.
+//         : unSize - Amount of data to be transmit.
+//         : ulTimeout - Timeout duration.
+// Return  : blResult
+// Notes   : None
+//*****************************************************************************
+bool i2cSlaveTransmit(I2C_HandleTypeDef *pstHi2c, uint8 *pucData, uint16 unSize,
+		              uint32 ulTimeout )
+{
+	bool blResult = false;
+
+	if (HAL_OK == HAL_I2C_Slave_Transmit(pstHi2c, pucData, unSize, ulTimeout))
+	{
 		blResult = true;
 	}
 

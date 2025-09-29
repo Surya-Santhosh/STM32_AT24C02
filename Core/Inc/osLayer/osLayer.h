@@ -33,6 +33,10 @@ bool osLayerCreation();
 bool osLayerGetSemHandler(osSemaphoreId_t *ppSemSlaveHandle,
 		                  osSemaphoreId_t *ppSemMasterHandle);
 bool osLayerMQueueCreation(osMessageQueueId_t *ppMqSlaveHandle, uint16 unSize);
+bool osLayerMessageQueuePut(osMessageQueueId_t pMqHandle, void *pvMessage,
+		                    uint8 ucPriority, uint32 ulTimeout);
+bool osLayerMessageQueueGet(osMessageQueueId_t pMqHandle, void *pvMessage,
+		                    uint8 *pucPriority, uint32 ulTimeout);
 
 //********************** Inline Method Implementations ************************
 

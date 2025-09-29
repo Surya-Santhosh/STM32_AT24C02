@@ -142,5 +142,51 @@ bool osLayerCreation()
 	return blResult;
 }
 
+//*************************.osLayerMessageQueuePut.****************************
+// Purpose : Put a Message into Queue.
+// Inputs  : pMqHandle - Message queue handler.
+//         : pvMessage - pointer to message to put into a queue.
+//         : ucPriority - Message priority.
+//         : ulTimeout - Timeout duration.
+// Outputs : None
+// Return  : blResult
+// Notes   : None
+//*****************************************************************************
+bool osLayerMessageQueuePut(osMessageQueueId_t pMqHandle, void *pvMessage,
+		                    uint8 ucPriority, uint32 ulTimeout)
+{
+	bool blResult = false;
+
+	if (osOK == osMessageQueuePut(pMqHandle, pvMessage, ucPriority, ulTimeout))
+	{
+		blResult = true;
+	}
+
+	return blResult;
+}
+
+//*************************.osLayerMessageQueueGet.****************************
+// Purpose : Get a Message from a Queue.
+// Inputs  : pMqHandle - Message queue handler.
+//         : pvMessage - Pointer to message to put into a queue.
+//         : pucPriority - Pointer to Message priority.
+//         : ulTimeout - Timeout duration.
+// Outputs : None
+// Return  : blResult
+// Notes   : None
+//*****************************************************************************
+bool osLayerMessageQueueGet(osMessageQueueId_t pMqHandle, void *pvMessage,
+		                    uint8 *pucPriority, uint32 ulTimeout)
+{
+	bool blResult = false;
+
+	if (osOK == osMessageQueueGet(pMqHandle, pvMessage, pucPriority, ulTimeout))
+	{
+		blResult = true;
+	}
+
+	return blResult;
+}
+
 //EOF
 

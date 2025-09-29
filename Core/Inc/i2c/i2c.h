@@ -24,7 +24,12 @@ bool i2cRead(_I2C_PACKET_ *pstI2cPacket);
 bool i2cRead(_I2C_PACKET_ *pstI2cPacket);
 bool i2c2Init();
 bool i2c1Init();
-bool i2cGetHandler(I2C_HandleTypeDef *pstHi2c1, I2C_HandleTypeDef *pstHi2c2);
+bool i2c1GetHandler(I2C_HandleTypeDef *pstHi2c1);
+bool i2c2GetHandler(I2C_HandleTypeDef *pstHi2c2);
+bool i2cSlaveReceive(I2C_HandleTypeDef *pstHi2c, uint8 *pucData, uint16 unSize,
+		             uint32 ulTimeout );
+bool i2cSlaveTransmit(I2C_HandleTypeDef *pstHi2c, uint8 *pucData, uint16 unSize,
+		              uint32 ulTimeout );
 
 //********************** Inline Method Implementations ************************
 

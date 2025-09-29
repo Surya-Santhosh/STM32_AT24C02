@@ -20,14 +20,14 @@ static osSemaphoreId_t pSemMasterHandle;
 static osSemaphoreId_t pSemSlaveHandle;
 static osMessageQueueId_t pMqSlaveHandle;
 static osMessageQueueId_t pMqMasterHandle;
-static I2C_HandleTypeDef stHi2c2;
-static I2C_HandleTypeDef stHi2c1;
 
 //***************************** Local Variables *******************************
 
 //****************************** Local Functions ******************************
 static bool stm32Slave();
 static bool stm32Master();
+static bool stm32slaveReceivedFromEsp32(I2C_HandleTypeDef *pstHi2c2);
+static bool stm32slaveTransmitToEsp32(I2C_HandleTypeDef *pstHi2c2);
 
 //*******************************.stm32Slave.**********************************
 // Purpose : Act as STM32 I2C Slave, Receive commands from ESP32 send to
@@ -39,51 +39,29 @@ static bool stm32Master();
 //*****************************************************************************
 static bool stm32Slave()
 {
-	uint8 ucRxData[TX_MESSAGE_SIZE] = {0};
-	uint8 ucTxData[RX_MESSAGE_SIZE] = {0};
-	_TX_MESSAGE_ stTxMessage = {0};
-	_RX_MESSAGE_ stRecievedRxMessage ={0};
+	I2C_HandleTypeDef stHi2c2 = {0};
 
 	if (true != osLayerGetSemHandler(&pSemSlaveHandle, &pSemMasterHandle))
 	{
 		printf("osLayerGetSemHandler failed\r\n");
 	}
 
-	if (true != i2cGetHandler(&stHi2c1, &stHi2c2))
+	if (true != i2c2GetHandler(&stHi2c2))
 	{
-		printf("osLayerGetI2CHandler failed\r\n");
+		printf("osLayerGetI2C2Handler failed\r\n");
 	}
 
-	if (HAL_OK == HAL_I2C_Slave_Receive(&stHi2c2, ucRxData, TX_MESSAGE_SIZE,
-			                            TIMEOUT))
+	if (true == stm32slaveReceivedFromEsp32(&stHi2c2))
 	{
-		memcpy(&stTxMessage, ucRxData, sizeof(ucRxData));
-
-		if (osOK == osMessageQueuePut((osMessageQueueId_t) pMqSlaveHandle,
-											   &stTxMessage, 0, TIMEOUT))
-		{
-			printf("Message Received from ESP32\r\n");
-		}
+		// dummy case.
 	}
 
 	osSemaphoreRelease(pSemSlaveHandle);
 	osSemaphoreAcquire(pSemMasterHandle, osWaitForever);
 
-	if (osOK == osMessageQueueGet((osMessageQueueId_t) pMqMasterHandle,
-	    		                       &stRecievedRxMessage, 0, TIMEOUT))
+	if (true == stm32slaveTransmitToEsp32(&stHi2c2))
 	{
-		printf("Message Received from EEPROM\r\n");
-		memcpy(ucTxData, &stRecievedRxMessage, sizeof(_RX_MESSAGE_));
-
-		if (HAL_OK == HAL_I2C_Slave_Transmit(&stHi2c2, ucTxData, RX_MESSAGE_SIZE,
-				                             TIMEOUT))
-		{
-		  printf("Data Tx Success \r\n");
-		}
-		else
-		{
-		  printf("Tx Failed\r\n");
-		}
+		// dummy case.
 	}
 
 	osSemaphoreRelease(pSemSlaveHandle);
@@ -104,6 +82,7 @@ static bool stm32Master()
 	_TX_MESSAGE_ stRecievedTxMessage = {0};
 	_RX_MESSAGE_ stRxMessage ={0};
 	_I2C_PACKET_ stI2cPacket = {0};
+	I2C_HandleTypeDef stHi2c1 = {0};
 
 	if (true != osLayerGetSemHandler(&pSemSlaveHandle, &pSemMasterHandle))
 	{
@@ -112,8 +91,13 @@ static bool stm32Master()
 
 	osSemaphoreAcquire(pSemSlaveHandle, osWaitForever);
 
-    if (osOK == osMessageQueueGet((osMessageQueueId_t) pMqSlaveHandle,
-    		                       &stRecievedTxMessage, 0, TIMEOUT))
+	if (true != i2c1GetHandler(&stHi2c1))
+	{
+		printf("osLayerGetI2C1Handler failed\r\n");
+	}
+
+    if (true == osLayerMessageQueueGet(pMqSlaveHandle, &stRecievedTxMessage,
+    		                           NULL, TIMEOUT))
     {
     	printf("Message Received from Slave.\r\n");
 
@@ -145,10 +129,10 @@ static bool stm32Master()
 			}
     	}
 
-		if (osOK == osMessageQueuePut((osMessageQueueId_t) pMqMasterHandle,
-									&stRxMessage, 0, TIMEOUT))
+		if (true == osLayerMessageQueuePut(pMqMasterHandle, &stRxMessage, 0,
+				                           TIMEOUT))
 		{
-			printf("Message send to slave\r\n");
+			printf("Message send to slave from EEPROM\r\n");
 		}
     }
 
@@ -202,6 +186,75 @@ void stm32MasterTask()
 		  printf("Error in stm32Master\r\n");
 	  }
 	}
+}
+
+//***************************.stm32slaveEsp32.*********************************
+// Purpose : Act as STM32 I2C Slave, Receive commands from ESP32 send to
+//         : master via message queue.
+// Inputs  : pstHi2c2 - pointer to receive I2C2 Handler.
+// Outputs : None
+// Return  : blResult
+// Notes   : None
+//*****************************************************************************
+static bool stm32slaveReceivedFromEsp32(I2C_HandleTypeDef *pstHi2c2)
+{
+	bool blResult = false;
+	uint8 ucRxData[TX_MESSAGE_SIZE] = {0};
+	_TX_MESSAGE_ stTxMessage = {0};
+
+	if (true == i2cSlaveReceive(pstHi2c2, ucRxData, TX_MESSAGE_SIZE,
+			                      TIMEOUT))
+	{
+		printf("Message Received from ESP32\r\n");
+
+		memcpy(&stTxMessage, ucRxData, sizeof(ucRxData));
+
+		if (true == osLayerMessageQueuePut(pMqSlaveHandle, &stTxMessage, 0,
+				                           TIMEOUT))
+		{
+			printf("Message send to Master from ESP32.\r\n");
+
+			blResult = true;
+		}
+	}
+
+	return blResult;
+}
+
+//**************************.stm32slaveAt24c02.********************************
+// Purpose : Act as STM32 I2C Slave, send back Ack to ESP32 from Master.
+// Inputs  : pstHi2c2 - pointer to receive I2C2 Handler.
+// Outputs : None
+// Return  : blResult
+// Notes   : None
+//*****************************************************************************
+static bool stm32slaveTransmitToEsp32(I2C_HandleTypeDef *pstHi2c2)
+{
+	bool blResult = false;
+	uint8 ucTxData[RX_MESSAGE_SIZE] = {0};
+	_RX_MESSAGE_ stRecievedRxMessage ={0};
+
+	if (true == osLayerMessageQueueGet(pMqMasterHandle, &stRecievedRxMessage,
+			                           NULL, TIMEOUT))
+	{
+		printf("Message Received from Master\r\n");
+
+		memcpy(ucTxData, &stRecievedRxMessage, sizeof(_RX_MESSAGE_));
+
+		if (true == i2cSlaveTransmit(pstHi2c2, ucTxData, RX_MESSAGE_SIZE,
+				                       TIMEOUT))
+		{
+		  printf("Data Tx Success \r\n");
+
+		  blResult = true;
+		}
+		else
+		{
+		  printf("Tx Failed\r\n");
+		}
+	}
+
+	return blResult;
 }
 
 //EOF
